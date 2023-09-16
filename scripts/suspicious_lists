@@ -1,0 +1,15 @@
+SUSPICIOUS_PE_IMPORTS = [
+    "VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory",
+    "VirtualFree", "LoadLibrary", "GetProcAddress", "LdrLoadDll", "CreateFile",
+    "WriteFile", "ReadFile", "DeleteFile", "CreateProcess", "OpenProcess",
+    "TerminateProcess", "InjectThread", "WSASocket", "connect", "send", "recv",
+    "InternetOpen", "InternetOpenUrl", "RegOpenKey", "RegSetValue", "RegCreateKey",
+    "RegDeleteKey", "SetWindowsHookEx", "GetKeyState", "IsDebuggerPresent",
+    "CheckRemoteDebuggerPresent", "OpenService", "StartService", "CreateService", "DeleteService"
+]
+
+SUSPICIOUS_ELF_IMPORTS = [
+    "ptrace", "fork", "execve", "open", "read", "write", "kill", 
+    "dlopen", "mmap", "mprotect", "socket", "connect", "send", "recv", 
+    "system", "popen", "chmod", "chown", "unlink"
+]
