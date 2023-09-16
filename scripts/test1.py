@@ -4,6 +4,7 @@ import sys
 import requests
 import pefile
 
+from elftools.elf.elffile import ELFFile
 from datetime import datetime
 from pwd import getpwuid
 from termcolor import colored  # You'll need to install termcolor: pip install termcolor
@@ -35,6 +36,11 @@ def get_file_info(filepath, min_length=5):
         'strings': str_result
     }
 
+
+# Elf File Analysis
+def elf_analysis(filepath):
+    
+
 # Heuristic Analysis based on metadata
 def heuristic_analysis(file_info):
     alerts = []
@@ -61,7 +67,7 @@ def get_virustotal_report(api_key, hashes):
             json_response = response.json()
             
             # Display results with color for better clarity
-            print(colored(f"Magic - " + str(json_response['data']['attributes']['magic']), 'blue'))
+            print(colored(f"Magic - " + str(json_response['data']['attributes']['magic']), 'white'))
             malicious = json_response['data']['attributes']['last_analysis_stats']['malicious']
             if malicious > 0:
                 print(colored(f"Malicious Results: {malicious}", 'red'))
@@ -69,8 +75,11 @@ def get_virustotal_report(api_key, hashes):
                 print(colored(f"Malicious Results: {malicious}", 'green'))
 
             last_analysis_results = json_response['data']['attributes']['last_analysis_results']
+            print()
 
             # Get the top 5 AV results
+            print(colored("Top 5 AV Results:", 'red'))
+
             for key, value in last_analysis_results.items():
                 if i <= 5:
                     if value['category'] == 'malicious' or value['category'] == 'suspicious':
@@ -122,6 +131,7 @@ def detect_packer(filepath):
             if s in section.Name.decode('utf-8'):
                 return s
     return None
+
 
 def main():
 
