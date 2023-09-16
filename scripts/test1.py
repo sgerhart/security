@@ -3,6 +3,7 @@ import os
 import sys
 import requests
 import pefile
+import elftools
 
 from elftools.elf.elffile import ELFFile
 from datetime import datetime
@@ -31,6 +32,7 @@ def get_file_info(filepath, min_length=5):
     return {
         'file size': str(info.st_size),
         'file owner': getpwuid(info.st_uid).pw_name,
+        'file type': 'ELF' if str_result[0].startswith('ELF') else 'PE',
         'creation-time': str(datetime.fromtimestamp(info.st_ctime))[:19],
         'modified': str(datetime.fromtimestamp(info.st_mtime))[:19],
         'strings': str_result
@@ -39,7 +41,27 @@ def get_file_info(filepath, min_length=5):
 
 # Elf File Analysis
 def elf_analysis(filepath):
-    
+
+    with open(filepath, 'rb') as f:
+        elf_file = ELFFile(f)
+
+        # Extracting and displaying the ELF header info
+        print(f"ELF Class: {elf_file.header['e_ident']['EI_CLASS']}")
+        print(f"ELF Machine (architecture): {elf_file.header['e_machine']}")
+
+        # Extracting and displaying sections info
+        print("\nSections:")
+        for section in elf_file.iter_sections():
+            print(f"{section.name}: {section['sh_type']}")
+
+        # If the binary has symbols, display them
+        symbol_tables = [s for s in elf_file.iter_sections() if isinstance(s, elftools.elf.sections.SymbolTableSection)]
+        if symbol_tables:
+            for symbol_table in symbol_tables:
+                print(f"\nSymbols from {symbol_table.name}:")
+                for symbol in symbol_table.iter_symbols():
+                    print(f"{symbol.name}: {symbol['st_info']['type']}")
+
 
 # Heuristic Analysis based on metadata
 def heuristic_analysis(file_info):
@@ -156,6 +178,13 @@ def main():
         #     for s in value:
         #         print(f"\t{s}")
     print()
+
+
+    # Perform ELF analysis if file is an ELF binary
+    if file_info['file type'] == 'ELF':
+        print(colored("ELF Analysis: ", 'blue') )
+        elf_analysis(filename)
+        print()
     
     # Gather file hashes and display
     print(colored("File Hashes: ", 'blue') )
