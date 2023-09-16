@@ -1,0 +1,62 @@
+import requests
+import pefile
+from elftools.elf.elffile import ELFFile
+
+SUSPICIOUS_IMPORTS = ['VirtualAlloc', 'LoadLibrary', 'GetProcAddress']
+OPENAI_API_URL = 'https://api.openai.com/v2/engines/davinci/completions'
+
+def analyze_pe(file_path):
+    suspicious_found = []
+    pe = pefile.PE(file_path)
+
+    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+        for imp in entry.imports:
+            if imp.name.decode('utf-8') in SUSPICIOUS_IMPORTS:
+                suspicious_found.append(imp.name.decode('utf-8'))
+    return suspicious_found
+
+def analyze_elf(file_path):
+    suspicious_found = []
+    with open(file_path, 'rb') as f:
+        elf_file = ELFFile(f)
+        for section in elf_file.iter_sections():
+            if isinstance(section, elftools.elf.sections.SymbolTableSection):
+                for symbol in section.iter_symbols():
+                    if symbol.name in SUSPICIOUS_IMPORTS:
+                        suspicious_found.append(symbol.name)
+    return suspicious_found
+
+def get_detail_from_chatgpt(api_key, string):
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+
+    data = {
+        'prompt': f'Provide details about the function or symbol: {string}',
+        'max_tokens': 150
+    }
+
+    response = requests.post(OPENAI_API_URL, headers=headers, json=data)
+    if response.status_code == 200:
+        return response.json()["choices"][0]["text"].strip()
+    else:
+        return f"Error: {response.text}"
+
+def main():
+    file_path = "path_to_your_binary"
+    file_type = determine_file_type(file_path)
+    suspicious_found = []
+
+    if file_type == "PE":
+        suspicious_found = analyze_pe(file_path)
+    elif file_type == "ELF":
+        suspicious_found = analyze_elf(file_path)
+
+    if suspicious_found:
+        api_key = 'YOUR_OPENAI_API_KEY'
+        for item in suspicious_found:
+            details = get_detail_from_chatgpt(api_key, item)
+            print(f"{item}: {details}")
+    else:
+        print("No suspicious imports or symbols found.")
