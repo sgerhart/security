@@ -12,6 +12,7 @@ from termcolor import colored  # You'll need to install termcolor: pip install t
 
 # File Metadata extraction
 def get_file_info(filepath, min_length=5):
+    type = ""
     info = os.stat(filepath)
     
     # Extract embedded strings
@@ -29,10 +30,21 @@ def get_file_info(filepath, min_length=5):
                     str_result.append(current_string.decode(errors='replace'))
                 current_string = b""
 
+    # Extract header info
+    with open(filepath, 'rb') as file:
+        header = file.read(4)
+
+        if header == b'\x7fELF':
+            type = "ELF"
+        elif header[:2] == b'MZ':
+            type = "PE"
+        else:
+            return "Unknown file type"
+
     return {
         'file size': str(info.st_size),
         'file owner': getpwuid(info.st_uid).pw_name,
-        'file type': 'ELF' if str_result[0].startswith('ELF') else 'PE',
+        'file type': type,
         'creation-time': str(datetime.fromtimestamp(info.st_ctime))[:19],
         'modified': str(datetime.fromtimestamp(info.st_mtime))[:19],
         'strings': str_result
@@ -202,9 +214,12 @@ def main():
 
     # Check if file is packed
     print(colored("Packer Detection: ", 'blue') )
-    packer = detect_packer(filename)
-    if packer != 0:
-        print(colored(f"File is packed with {packer}", 'red'))
+    if file_info['file type'] != 'ELF':
+        packer = detect_packer(filename)
+        if packer != 0:
+            print(colored(f"File is packed with {packer}", 'red'))
+        else:
+            print(colored("File is not packed", 'green'))
     else:
         print(colored("File is not packed", 'green'))
     print()
