@@ -9,7 +9,7 @@
 void create_flag_file() {
     char home_path[1024];
     strcpy(home_path, getenv("HOME"));
-    strcat(home_path, "/Hacking Test");
+    strcat(home_path, "/Hacked.txt");
 
     FILE *file = fopen(home_path, "w");
     if (file == NULL) {
@@ -32,7 +32,7 @@ void make_connection() {
         return;
     }
 
-    host = gethostbyname("justplayingaroungwithacode.abc");
+    host = gethostbyname("weownyounow.abc");
     if (host == NULL) {
         perror("gethostbyname() error");
         return;
@@ -45,7 +45,7 @@ void make_connection() {
     if (connect(sock, (struct sockaddr *)&server, sizeof(server)) < 0) {
         perror("Connection error");
     } else {
-        printf("Connected successfully (this is just a test, no actual data was sent or received)\n");
+        printf("Connected successfully - we have all your data now!!!)\n");
     }
 
     close(sock);

@@ -4,6 +4,7 @@ import sys
 import requests
 import pefile
 import elftools
+import openai
 
 from elftools.elf.elffile import ELFFile
 from datetime import datetime
@@ -11,8 +12,23 @@ from pwd import getpwuid
 from termcolor import colored  # You'll need to install termcolor: pip install termcolor
 
 
-SUSPICIOUS_IMPORTS = ['VirtualAlloc', 'LoadLibrary', 'GetProcAddress']
-OPENAI_API_URL = 'https://api.openai.com/v2/engines/davinci/completions'
+SUSPICIOUS_PE_IMPORTS = [
+    "VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory",
+    "VirtualFree", "LoadLibrary", "GetProcAddress", "LdrLoadDll", "CreateFile",
+    "WriteFile", "ReadFile", "DeleteFile", "CreateProcess", "OpenProcess",
+    "TerminateProcess", "InjectThread", "WSASocket", "connect", "send", "recv",
+    "InternetOpen", "InternetOpenUrl", "RegOpenKey", "RegSetValue", "RegCreateKey",
+    "RegDeleteKey", "SetWindowsHookEx", "GetKeyState", "IsDebuggerPresent",
+    "CheckRemoteDebuggerPresent", "OpenService", "StartService", "CreateService", "DeleteService"
+]
+
+SUSPICIOUS_ELF_IMPORTS = [
+    "ptrace", "fork", "execve", "open", "read", "write", "kill", 
+    "dlopen", "mmap", "mprotect", "socket", "connect", "send", "recv", 
+    "system", "popen", "chmod", "chown", "unlink"
+]
+
+OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 
 
 # File Metadata extraction
@@ -63,7 +79,7 @@ def analyze_pe(file_path):
 
     for entry in pe.DIRECTORY_ENTRY_IMPORT:
         for imp in entry.imports:
-            if imp.name.decode('utf-8') in SUSPICIOUS_IMPORTS:
+            if imp.name.decode('utf-8') in SUSPICIOUS_PE_IMPORTS:
                 suspicious_found.append(imp.name.decode('utf-8'))
     return suspicious_found
 
@@ -75,7 +91,7 @@ def analyze_elf(file_path):
         for section in elf_file.iter_sections():
             if isinstance(section, elftools.elf.sections.SymbolTableSection):
                 for symbol in section.iter_symbols():
-                    if symbol.name in SUSPICIOUS_IMPORTS:
+                    if symbol.name in SUSPICIOUS_ELF_IMPORTS:
                         suspicious_found.append(symbol.name)
     return suspicious_found
 
@@ -160,22 +176,33 @@ def detect_packer(filepath):
     return None
 
 
-def get_detail_from_chatgpt(api_key, string):
+# ChatpGPT API using requests library (Transitioned to OpenAI API)
+""" def get_detail_from_chatgpt(api_key, strings, suspicious_api_system_calls):
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
     }
 
     data = {
-        'prompt': f'Provide details about the function or symbol: {string}',
+        'model': 'gpt-3.5-turbo',
+        'messages':[{
+        'role': 'user',
+        'content': f'Provide details about the function or symbol: {string}'
+        }],
         'max_tokens': 150
-    }
+        }
 
     response = requests.post(OPENAI_API_URL, headers=headers, json=data)
     if response.status_code == 200:
-        return response.json()["choices"][0]["text"].strip()
+        print(response.json()['choices'][0]['message']['content'])
+        #return response.json()["choices"][0]["text"].strip()
     else:
-        return f"Error: {response.text}"
+        return f"Error: {response.text}" """
+
+
+def get_detail_from_chatgpt(api_key, prompts, file_strings, suspicious_api_system_calls):
+
+    openai.api_key = api_key
 
 
 
@@ -184,6 +211,14 @@ def main():
 
     hash = {}
     suspicious_found = []
+    strings_found = []
+    prompt_dict = 
+
+    prompt_dict{
+        
+    }
+
+    # Get API Keys from environment variables (export API_KEY=xxxxx)
     total_virus_key = os.environ.get('VT_API_KEY')
     openai_key = os.environ.get('OPENAI_API_KEY')
 
@@ -200,27 +235,28 @@ def main():
     for key, value in file_info.items():
         if key != 'strings':
             print(f"{key}: {value}")
-        # else:
-        #     print(f"{key}:")
-        #     for s in value:
-        #         print(f"\t{s}")
+        else:
+             print(f"The following Strings were found:")
+             for s in value:
+                 strings_found.append(s)
+             print(strings_found)
     print()
-
-
-    suspicious_found = []
-
+   
+    # PE and ELF Analysis
     if file_info['file type'] == "PE":
         suspicious_found = analyze_pe(filename)
-    elif file_info['file type'] == "ELF":
+        print(colored("Anaylzing PE File", 'blue'))
+        if suspicious_found:
+            print(f"The following API calls where found: {suspicious_found}")
+            print()
+    elif file_info['file type'] == "ELF" :
         suspicious_found = analyze_elf(filename)
+        print(colored("Anaylzing ELF File", 'blue'))
+        if suspicious_found:
+            print(f"The following System Calls and Functions where found: {suspicious_found}")
+            print()
 
-    if suspicious_found:
-        api_key = 'YOUR_OPENAI_API_KEY'
-        for item in suspicious_found:
-            details = get_detail_from_chatgpt(openai_key, item)
-            print(f"{item}: {details}")
-    else:
-        print("No suspicious imports or symbols found.")
+    
 
     
     # Gather file hashes and display
@@ -248,6 +284,12 @@ def main():
     # VirusTotal report
     print(colored("VirusTotal Report: ", 'blue') )
     get_virustotal_report(total_virus_key, hash)
+    print(()
+    
+    # ChatGPT API
+    print(colored("ChatGPT API: ", 'blue') )
+    get_detail_from_chatgpt(openai_key, prompts, strings_found, suspicious_found)
+
 
 if __name__ == "__main__":
     main()
