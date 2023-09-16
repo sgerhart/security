@@ -10,6 +10,11 @@ from datetime import datetime
 from pwd import getpwuid
 from termcolor import colored  # You'll need to install termcolor: pip install termcolor
 
+
+SUSPICIOUS_IMPORTS = ['VirtualAlloc', 'LoadLibrary', 'GetProcAddress']
+OPENAI_API_URL = 'https://api.openai.com/v2/engines/davinci/completions'
+
+
 # File Metadata extraction
 def get_file_info(filepath, min_length=5):
     type = ""
@@ -51,41 +56,29 @@ def get_file_info(filepath, min_length=5):
     }
 
 
-# Elf File Analysis
-def elf_analysis(filepath):
+# PE File Analysis
+def analyze_pe(file_path):
+    suspicious_found = []
+    pe = pefile.PE(file_path)
 
-    with open(filepath, 'rb') as f:
+    for entry in pe.DIRECTORY_ENTRY_IMPORT:
+        for imp in entry.imports:
+            if imp.name.decode('utf-8') in SUSPICIOUS_IMPORTS:
+                suspicious_found.append(imp.name.decode('utf-8'))
+    return suspicious_found
+
+# ELF File Analysis
+def analyze_elf(file_path):
+    suspicious_found = []
+    with open(file_path, 'rb') as f:
         elf_file = ELFFile(f)
-
-        # Extracting and displaying the ELF header info
-        print(f"ELF Class: {elf_file.header['e_ident']['EI_CLASS']}")
-        print(f"ELF Machine (architecture): {elf_file.header['e_machine']}")
-
-        # Extracting and displaying sections info
-        print("\nSections:")
         for section in elf_file.iter_sections():
-            print(f"{section.name}: {section['sh_type']}")
+            if isinstance(section, elftools.elf.sections.SymbolTableSection):
+                for symbol in section.iter_symbols():
+                    if symbol.name in SUSPICIOUS_IMPORTS:
+                        suspicious_found.append(symbol.name)
+    return suspicious_found
 
-        # If the binary has symbols, display them
-        symbol_tables = [s for s in elf_file.iter_sections() if isinstance(s, elftools.elf.sections.SymbolTableSection)]
-        if symbol_tables:
-            for symbol_table in symbol_tables:
-                print(f"\nSymbols from {symbol_table.name}:")
-                for symbol in symbol_table.iter_symbols():
-                    print(f"{symbol.name}: {symbol['st_info']['type']}")
-
-
-# Heuristic Analysis based on metadata
-def heuristic_analysis(file_info):
-    alerts = []
-    
-    # Example heuristic: Check if any IP-like patterns are found in embedded strings
-    for s in file_info['strings']:
-        if "192.168." in s:  # just a basic example
-            alerts.append(f"Suspicious IP pattern found: {s}")
-        #print(s)
-    
-    return alerts
 
 # Improved VirusTotal reporting with colored outputs
 def get_virustotal_report(api_key, hashes):
@@ -167,10 +160,32 @@ def detect_packer(filepath):
     return None
 
 
+def get_detail_from_chatgpt(api_key, string):
+    headers = {
+        'Authorization': f'Bearer {api_key}',
+        'Content-Type': 'application/json'
+    }
+
+    data = {
+        'prompt': f'Provide details about the function or symbol: {string}',
+        'max_tokens': 150
+    }
+
+    response = requests.post(OPENAI_API_URL, headers=headers, json=data)
+    if response.status_code == 200:
+        return response.json()["choices"][0]["text"].strip()
+    else:
+        return f"Error: {response.text}"
+
+
+
+
 def main():
 
     hash = {}
+    suspicious_found = []
     total_virus_key = os.environ.get('VT_API_KEY')
+    openai_key = os.environ.get('OPENAI_API_KEY')
 
 
     if len(sys.argv) != 2:
@@ -192,11 +207,21 @@ def main():
     print()
 
 
-    # Perform ELF analysis if file is an ELF binary
-    if file_info['file type'] == 'ELF':
-        print(colored("ELF Analysis: ", 'blue') )
-        elf_analysis(filename)
-        print()
+    suspicious_found = []
+
+    if file_info['file type'] == "PE":
+        suspicious_found = analyze_pe(filename)
+    elif file_info['file type'] == "ELF":
+        suspicious_found = analyze_elf(filename)
+
+    if suspicious_found:
+        api_key = 'YOUR_OPENAI_API_KEY'
+        for item in suspicious_found:
+            details = get_detail_from_chatgpt(openai_key, item)
+            print(f"{item}: {details}")
+    else:
+        print("No suspicious imports or symbols found.")
+
     
     # Gather file hashes and display
     print(colored("File Hashes: ", 'blue') )
@@ -206,11 +231,6 @@ def main():
             hash[key] = value
     print()
 
-    # Perform heuristic analysis and display alerts
-    alerts = heuristic_analysis(file_info)
-    for alert in alerts:
-        print(colored(alert, 'yellow'))
-    print()
 
     # Check if file is packed
     print(colored("Packer Detection: ", 'blue') )
