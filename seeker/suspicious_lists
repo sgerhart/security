@@ -1,3 +1,5 @@
+This is a list of functions, system calls and API used in seeker to detect suspicious activity.
+
 SUSPICIOUS_PE_IMPORTS = [
     "VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory",
     "VirtualFree", "LoadLibrary", "GetProcAddress", "LdrLoadDll", "CreateFile",
