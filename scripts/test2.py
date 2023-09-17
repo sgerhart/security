@@ -5,6 +5,7 @@ import requests
 import pefile
 import elftools
 import openai
+import pprint
 
 from elftools.elf.elffile import ELFFile
 from datetime import datetime
@@ -199,12 +200,33 @@ def detect_packer(filepath):
     else:
         return f"Error: {response.text}" """
 
+# ChatGPT API using OpenAI Python SDK
+def get_detail_from_chatgpt(api_key, file_strings, suspicious_api_system_calls):
 
-def get_detail_from_chatgpt(api_key, prompts, file_strings, suspicious_api_system_calls):
+    prompt_list = [
+        {"role": "user", "content": "Today you are going to be a security anaylst that is going to investigate some information that was obtained from some malicious files."},
+        {"role": "user", "content": f"Please provide details about the function, symbol or system call in the following list of information pulled from the malicious file? {file_strings}"},
+        {"role": "user", "content": f"Pleaes analaze the following strings that were pulled ouf of the file and what sticks out or is suspicious file? {suspicious_api_system_calls}"},
+        {"role": "user","content": "What else would be helpful to understand from this analyse from this file?"},
+    ]
 
     openai.api_key = api_key
 
+    message_prompts = []
 
+    for p in prompt_list:
+        message_prompts.append(p)
+        #print(message_prompts)
+        completion = openai.ChatCompletion.create(
+
+            model="gpt-3.5-turbo",
+            messages=message_prompts
+        )
+
+        #print(completion.choices[0].message)
+        message_prompts.append(completion.choices[0].message)
+
+    return message_prompts
 
 
 def main():
@@ -212,11 +234,7 @@ def main():
     hash = {}
     suspicious_found = []
     strings_found = []
-    prompt_dict = 
-
-    prompt_dict{
-        
-    }
+    
 
     # Get API Keys from environment variables (export API_KEY=xxxxx)
     total_virus_key = os.environ.get('VT_API_KEY')
@@ -284,11 +302,12 @@ def main():
     # VirusTotal report
     print(colored("VirusTotal Report: ", 'blue') )
     get_virustotal_report(total_virus_key, hash)
-    print(()
+    print()
     
     # ChatGPT API
-    print(colored("ChatGPT API: ", 'blue') )
-    get_detail_from_chatgpt(openai_key, prompts, strings_found, suspicious_found)
+    print(colored("ChatGPT API: ", 'blue'))
+    #get_detail_from_chatgpt(openai_key, strings_found, suspicious_found)
+    pprint.pprint(get_detail_from_chatgpt(openai_key, strings_found, suspicious_found))
 
 
 if __name__ == "__main__":
