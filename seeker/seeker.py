@@ -101,6 +101,7 @@ def analyze_elf(file_path):
 def get_virustotal_report(api_key, hashes):
 
     i = 0
+    av_result = []
 
     for key, value in hashes.items():
         url = f'https://www.virustotal.com/api/v3/files/{value}'
@@ -128,11 +129,13 @@ def get_virustotal_report(api_key, hashes):
                 if i <= 5:
                     if value['category'] == 'malicious' or value['category'] == 'suspicious':
                         print(f"{key}: {value['result']}")
+                        av_result.append(value['result'])
                     i += 1
             
         else:
             print("Error: " + str(response.status_code))
 
+    return av_result
 # Hashing
 def get_file_hash(filepath):
     
@@ -201,13 +204,18 @@ def detect_packer(filepath):
         return f"Error: {response.text}" """
 
 # ChatGPT API using OpenAI Python SDK
-def get_detail_from_chatgpt(api_key, file_strings, suspicious_api_system_calls):
+def get_detail_from_chatgpt(api_key, file_strings, suspicious_api_system_calls, av_result):
 
     prompt_list = [
-        {"role": "user", "content": "Today you are going to be a security anaylst that is going to investigate some information that was obtained from some malicious files."},
-        {"role": "user", "content": f"Please provide details about the function, symbol or system call in the following list of information pulled from the malicious file? {file_strings}"},
-        {"role": "user", "content": f"Pleaes analaze the following strings that were pulled ouf of the file and what sticks out or is suspicious file? {suspicious_api_system_calls}"},
+        {"role": "user", "content": "Today you are going to be a malware anaylst that is going to investigate some information that was obtained from some malicious files."},
+        {"role": "user", "content": f"Please provide details about the av results? {av_result}"},
+        {"role": "user", "content": f"Please provide details about the strings in the following list that was pulled from the malicious file? {file_strings}"},
+        {"role": "user", "content": "Are there any strings that stick out or are suspicious? If so, what are they?"},
+        {"role": "user", "content": f"Pleaes analaze the following function, symbol or system calls that were pulled from the file? {suspicious_api_system_calls}"},
+        {"role": "user", "content": "Are there any function, symbol or system call that stick out or are suspicious? If so, what are they?"},
         {"role": "user","content": "What else would be helpful to understand from this analyse from this file?"},
+        {"role": "user","content": "Can you generate a Yara configuration that would help identify and classify this malware?"}
+
     ]
 
     openai.api_key = api_key
@@ -219,8 +227,10 @@ def get_detail_from_chatgpt(api_key, file_strings, suspicious_api_system_calls):
         #print(message_prompts)
         completion = openai.ChatCompletion.create(
 
-            model="gpt-3.5-turbo",
-            messages=message_prompts
+            model="gpt-3.5-turbo-16k",
+            messages=message_prompts,
+            temperature = 0
+            
         )
 
         #print(completion.choices[0].message)
@@ -301,13 +311,25 @@ def main():
 
     # VirusTotal report
     print(colored("VirusTotal Report: ", 'blue') )
-    get_virustotal_report(total_virus_key, hash)
+    av_result = get_virustotal_report(total_virus_key, hash)
     print()
     
     # ChatGPT API
     print(colored("ChatGPT API: ", 'blue'))
-    #get_detail_from_chatgpt(openai_key, strings_found, suspicious_found)
-    pprint.pprint(get_detail_from_chatgpt(openai_key, strings_found, suspicious_found))
+
+    results = get_detail_from_chatgpt(openai_key, strings_found, suspicious_found, av_result)
+    print(len(results))
+
+    for message in results:
+        role = message['role']
+        content = message['content']
+
+        if role == 'user':
+            print(colored(f"User: {content}", 'green'))
+            print()
+        if role == 'assistant':
+            print(colored(f"Assitant: {content}", 'white'))
+            print()
 
 
 if __name__ == "__main__":
