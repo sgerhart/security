@@ -1,0 +1,25 @@
+ def identify_file_type(file_path):
+    try:
+        with open(file_path, 'rb') as file:
+            # Read the first few bytes (commonly 8-16 bytes)
+            file_signature = file.read(16)
+
+        # Check for specific magic bytes or patterns
+        if file_signature.startswith(b'\x4D\x5A'):  # MZ header for Windows PE executable
+            return "Windows PE Executable"
+        elif file_signature.startswith(b'\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1'):  # OLE file
+            return "OLE Document (e.g., MS Office)"
+        elif file_signature.startswith(b'\x50\x4B\x03\x04'):  # Zip archive (common in MS Office documents)
+            return "MS Office Document (ZIP format)"
+        elif file_signature.startswith(b'\x3C\x3F\x78\x6D\x6C'):  # XML or HTML file (common in VBS)
+            return "XML/HTML File (e.g., VBS Script)"
+        else:
+            return "Unknown File Type"
+
+    except Exception as e:
+        return f"Error identifying file type: {str(e)}"
+
+if __name__ == "__main__":
+    file_path = input("Enter the path to the file you want to identify: ")
+    file_type = identify_file_type(file_path)
+    print(f"File type: {file_type}")
