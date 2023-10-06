@@ -1,1 +1,74 @@
+import pefile
+import hashlib
+import requests
 
+# Replace with your VirusTotal API key
+VT_API_KEY = "YOUR_VT_API_KEY"
+
+# Replace with your Hybrid Analysis API key
+HA_API_KEY = "YOUR_HA_API_KEY"
+
+def static_analysis(file_path):
+    try:
+        # Open the PE file
+        pe = pefile.PE(file_path)
+
+        # Extract basic information
+        file_type = "32-bit" if pe.FILE_HEADER.Machine == 0x14c else "64-bit"
+        file_hash_md5 = hashlib.md5(open(file_path, 'rb').read()).hexdigest()
+        file_hash_sha256 = hashlib.sha256(open(file_path, 'rb').read()).hexdigest()
+
+        # Extract strings from the PE file
+        pe_strings = []
+        for section in pe.sections:
+            pe_strings.extend(section.get_strings())
+
+        # Submit the file to VirusTotal
+        vt_report = None
+        if VT_API_KEY:
+            url = "https://www.virustotal.com/api/v3/files/upload"
+            headers = {
+                "x-apikey": VT_API_KEY
+            }
+            files = {'file': (file_path, open(file_path, 'rb'))}
+            response = requests.post(url, headers=headers, files=files)
+            if response.status_code == 200:
+                data = response.json()
+                resource_id = data['data']['id']
+                vt_report = f"VirusTotal Report: https://www.virustotal.com/gui/file/{resource_id}"
+
+        # Submit the file to Hybrid Analysis
+        ha_report = None
+        if HA_API_KEY:
+            url = "https://www.hybrid-analysis.com/api/v4/quick-scan/file"
+            headers = {
+                "api-key": HA_API_KEY
+            }
+            files = {'file': (file_path, open(file_path, 'rb'))}
+            response = requests.post(url, headers=headers, files=files)
+            if response.status_code == 200:
+                data = response.json()
+                analysis_id = data['response']['job_id']
+                ha_report = f"Hybrid Analysis Report: https://www.hybrid-analysis.com/sample/{analysis_id}"
+
+        # Create a human-readable report
+        report = f"File Type: {file_type}\n"
+        report += f"MD5 Hash: {file_hash_md5}\n"
+        report += f"SHA256 Hash: {file_hash_sha256}\n"
+        report += "\nStrings in PE File:\n"
+        report += "\n".join(pe_strings) + "\n"
+
+        if vt_report:
+            report += vt_report + "\n"
+        if ha_report:
+            report += ha_report + "\n"
+
+        # Print the report
+        print(report)
+
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+
+if __name__ == "__main__":
+    file_path = input("Enter the path to the Windows PE file: ")
+    static_analysis(file_path)
