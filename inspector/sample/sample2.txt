@@ -1,0 +1,58 @@
+import os
+import sys
+import subprocess
+import pefile  # For PE analysis (Windows Executables)
+import re
+
+# Function to identify file type
+def identify_file_type(file_path):
+    try:
+        output = subprocess.check_output(["file", file_path], universal_newlines=True)
+        return output.strip()
+    except Exception as e:
+        return str(e)
+
+# Function to extract static strings from a file
+def extract_static_strings(file_path):
+    static_strings = []
+    try:
+        with open(file_path, 'rb') as f:
+            data = f.read()
+            # Use a regular expression to find printable ASCII strings
+            static_strings = re.findall(b'[ -~]{6,}', data)
+    except Exception as e:
+        print(f"Error extracting strings: {str(e)}")
+    return static_strings
+
+# Function to analyze a Windows PE (Portable Executable) file
+def analyze_pe(file_path):
+    pe_info = {}
+    try:
+        pe = pefile.PE(file_path)
+        pe_info["Imported Functions"] = [entry.name.decode('utf-8') for entry in pe.DIRECTORY_ENTRY_IMPORT]
+        pe_info["Exported Functions"] = [entry.name.decode('utf-8') for entry in pe.DIRECTORY_ENTRY_EXPORT.symbols]
+        # You can extract more PE information as needed
+    except Exception as e:
+        print(f"Error analyzing PE: {str(e)}")
+    return pe_info
+
+# Specify the path to the malware sample
+malware_file = "/path/to/malware_sample.exe"
+
+if not os.path.exists(malware_file):
+    print("File not found.")
+    sys.exit(1)
+
+# Perform static analysis
+file_type = identify_file_type(malware_file)
+static_strings = extract_static_strings(malware_file)
+pe_info = analyze_pe(malware_file)
+
+# Print analysis results
+print(f"File Type: {file_type}")
+print("Static Strings:")
+for string in static_strings:
+    print(string.decode('utf-8'))
+print("PE Analysis:")
+for key, value in pe_info.items():
+    print(f"{key}: {value}")
