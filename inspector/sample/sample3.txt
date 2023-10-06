@@ -1,0 +1,53 @@
+import os
+import subprocess
+import pefile
+
+# Path to the malware sample
+malware_file = "/path/to/malware_sample.exe"
+
+# Ensure the malware file exists
+if not os.path.exists(malware_file):
+    print("Malware file not found.")
+    exit(1)
+
+# Static Analysis
+def static_analysis(file_path):
+    try:
+        # Use the 'file' command to identify the file type
+        file_info = subprocess.check_output(["file", file_path], universal_newlines=True)
+        print("File Information:")
+        print(file_info)
+
+        # Extract static strings from the binary
+        strings_output = subprocess.check_output(["strings", file_path], universal_newlines=True)
+        print("\nStatic Strings:")
+        print(strings_output)
+
+        # Analyze Windows PE file format
+        pe = pefile.PE(file_path)
+        print("\nPE Analysis:")
+        print(f"ImageBase: 0x{pe.OPTIONAL_HEADER.ImageBase:08X}")
+        print(f"Entry Point: 0x{pe.OPTIONAL_HEADER.AddressOfEntryPoint:08X}")
+        print(f"Number of Sections: {pe.FILE_HEADER.NumberOfSections}")
+        # Add more PE analysis as needed
+
+    except Exception as e:
+        print(f"Static analysis error: {str(e)}")
+
+# Dynamic Analysis
+def dynamic_analysis(file_path):
+    try:
+        # Execute the malware in a simulated environment (cmd.exe)
+        cmd_command = f"cmd.exe /c {file_path}"
+        dynamic_output = subprocess.check_output(cmd_command, shell=True, universal_newlines=True)
+        print("\nDynamic Analysis Output:")
+        print(dynamic_output)
+
+    except Exception as e:
+        print(f"Dynamic analysis error: {str(e)}")
+
+# Perform static analysis
+static_analysis(malware_file)
+
+# Perform dynamic analysis
+dynamic_analysis(malware_file)
