@@ -4,12 +4,14 @@ import subprocess
 import sys
 import pefile 
 import magic
-import requests 
+import requests
+import oletools.oleid
+from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
+import openai
+from termcolor import colored  # You'll need to install termcolor: pip install termcolor
 
 
 
-total_virus_key = ""
-hybrid_virus_key = ""
 
 SUSPICIOUS_PE_IMPORTS = [
     "VirtualAlloc", "VirtualProtect", "WriteProcessMemory", "ReadProcessMemory",
@@ -20,6 +22,42 @@ SUSPICIOUS_PE_IMPORTS = [
     "RegDeleteKey", "SetWindowsHookEx", "GetKeyState", "IsDebuggerPresent",
     "CheckRemoteDebuggerPresent", "OpenService", "StartService", "CreateService", "DeleteService"
 ]
+
+# prompt_list = [
+#         {"role": "user", "content": "Today you are going to be a malware anaylst that is going to investigate some information that was obtained from some malicious files."},
+#         {"role": "user", "content": f"Please provide details about the av results? {av_result}"},
+#         {"role": "user", "content": f"Please provide details about the strings in the following list that was pulled from the malicious file? {file_strings}"},
+#         {"role": "user", "content": "Are there any strings that stick out or are suspicious? If so, what are they?"},
+#         {"role": "user", "content": f"Pleaes analaze the following function, symbol or system calls that were pulled from the file? {suspicious_api_system_calls}"},
+#         {"role": "user", "content": "Are there any function, symbol or system call that stick out or are suspicious? If so, what are they?"},
+#         {"role": "user","content": "What else would be helpful to understand from this analyse from this file?"},
+#         {"role": "user","content": "Can you generate a Yara configuration that would help identify and classify this malware?"}
+
+#     ]
+
+# ChatGPT API using OpenAI Python SDK
+def get_details_from_chatgpt(prompt_list, file_strings="None", suspicious_api_system_calls="None", av_result="None"):
+    
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+
+    message_prompts = []
+
+    for p in prompt_list:
+       
+        message_prompts.append(p)
+        
+        completion = openai.ChatCompletion.create(
+
+            model="gpt-3.5-turbo-16k",
+            messages=message_prompts,
+            temperature = 0
+            
+        )
+
+        #print(completion.choices[0].message)
+        message_prompts.append(completion.choices[0].message)
+
+    return message_prompts
 
 
 def total_virus_report(file_path):
@@ -44,30 +82,14 @@ def total_virus_report(file_path):
                 print(f"Error submitting file to VirusTotal: {e}")
         return vt_report
 
-# def hybrid_virus_report(file_path):
-#         ha_report = None
-#         ha_api_key = os.getenv('HYBRID_ANALYSIS_API_KEY')
-        
-#         if ha_api_key:
-#             url = "https://www.hybrid-analysis.com/api/v4/quick-scan/file"
-#             files = ('file=@' + str((file_path, open(file_path, 'rb'))),'scan_type=all')
-#             print(files)
-#             headers = {
-#                 "api-key": ha_api_key,
-#             }
-#             try:
-#                 response = requests.post(url, headers=headers, files=files)
-#                 print(response.status_code)
-#                 if response.status_code == 200:
-#                     data = response.json()
-#                     print(data)
-#                     analysis_id = data['response']['job_id']
-#                     ha_report = f"Hybrid Analysis Report: https://www.hybrid-analysis.com/sample/{analysis_id}"
-#             except Exception as e:
-#                 print(f"Error submitting file to Hybrid Analysis: {e}")
-#         return ha_report
-        
+# Identify if the file is an office file
+def is_office_file(file_path):
+    mime = magic.Magic(mime=True)
+    file_type = mime.from_file(file_path)
+    print(file_type)
+    return "ms-office" in file_type
 
+        
 # identify file type
 def identify_file_type(file_path):
     try:
@@ -85,21 +107,83 @@ def identify_file_type(file_path):
         elif file_signature.startswith(b'\x3C\x3F\x78\x6D\x6C'):  # XML or HTML file (common in VBS)
             return "XML/HTML File (e.g., VBS Script)"
         else:
-            return "Unknown File Type"
+            try:
+                file_extension = os.path.splitext(file_path)[1].lower()
+
+                file_type_mapping = {
+                    ".vbs": "VBScript",
+                }
+
+                return file_type_mapping[file_extension]
+            except Exception as e:
+                print(f"Error identifying file type: {e}")
+                return "Unknown File Type"
 
     except Exception as e:
         print(f"Error identifying file type: {e}")
 
+# Analyze VBA Macros
+def analyze_vba(file_path):
+    vba_results = []
+    vbaparser = VBA_Parser(file_path)
+    vba_macro_code = []
+    analysis = []
+    prompt = []
+    segment = 0
+    i =0
+
+    if vbaparser.detect_vba_macros():
+        vba_results.append("VBA Macros Detected")
+
+        for vba_code in vbaparser.extract_macros():
+
+            # Get the VBA code analysis
+            if i == 0:
+                analysis = vbaparser.analyze_macros()
+                vba_results.append(analysis)
+                i += 1
+
+            vba_macro_code.append(vba_code)
+
+    else:
+
+        vba_results.append("No VBA Macros Detected")
+
+    #Gets the VBA code analysis from ChatGPT
+    for code_segments in vba_macro_code:
+        if segment == 0:
+
+            segment = 1
+            prompt.append({"role": "user", "content": f"VBA Code Segment {segment}: {code_segments} VBA Code Analysis:"})
+            segment += 1
+        
+        else:
+            
+            prompt.append({"role": "user", "content": f"VBA Code Segment {segment}: {code_segments} VBA Code Analysis:"})
+    
+    prompt.append({"role": "user", "content": f"The following is the analysis of the VBA code from OleTools VBA_Parser.AnalyzeMacro.: {analysis}"})
+    prompt.append({"role": "user", "content": "If the analysis of the VBA code from the OleTool discovered Base64 encoded strings, please decode them and provide the decoded code."})    
+    prompt.append({"role": "user", "content": "Please format the VBA code to be human-readable and then add your comments inline."})
+    prompt.append({"role": "user", "content": "What is your final analysis of this code?"})
+    prompt.append({"role": "user", "content": "What other information would be helpful for you to analyze this file further?"})
+            
+    vba_results.append(get_details_from_chatgpt(prompt))
+
+    return vba_results
+
+# Calculate the entropy of a file
 def calculate_entropy(data):
     entropy = 0
+    
     if data:
         for x in range(256):
             p_x = float(data.count(chr(x))) / len(data)
             if p_x > 0:
                 entropy += - p_x * math.log(p_x, 2)
+    
     return entropy
 
-
+# PE Analysis
 def pe_analysis(file_path):
     try:
         pe = pefile.PE(file_path)
@@ -165,8 +249,6 @@ def pe_analysis(file_path):
 
         if suspicious_sections:
             pe_info["Suspicious Sections"] = suspicious_sections
-
-
 
         return pe_info
     
@@ -256,10 +338,41 @@ def static_analysis(file_path, min_length=4):
             else:
                 static_info["Packer"] = "None"
 
+        elif file_type == "OLE Document (e.g., MS Office)":
+            vba_results = analyze_vba(file_path)
 
+             # Calculate hashes
+            hashes = calculate_hashes(file_path)
+            
+            static_info = {
+                "File Type": file_type,
+                "File Hashes": hashes,
+                "VBA Analysis": vba_results,
+            }
+
+        elif file_type == "MS Office Document (ZIP format)":
+            vba_results = analyze_vba(file_path)
+
+             # Calculate hashes
+            hashes = calculate_hashes(file_path)
+
+            static_info = {
+              "File Type": file_type,
+              "File Hashes": hashes,
+              "VBA Analysis": vba_results,
+            }
+
+        elif file_type == "VBScript":
+            static_info = {
+                "File Type": file_type,
+            }
+        else:
+            static_info = {
+                "File Type": "Unknown File Type",
+            } 
 
         # Checking virus total for posture of the file
-        static_info["Virus Total"] = total_virus_report(file_path)
+        #static_info["Virus Total"] = total_virus_report(file_path)
 
         # # Checking hybrid analysis for posture of the file
         # static_info["Hybrid Analysis"] = hybrid_virus_report(file_path)
@@ -278,15 +391,6 @@ def main():
     hash = {}
     suspicious_found = []
     strings_found = []
-    
-
-    # Get API Keys from environment variables (export API_KEY=xxxxx)
-    
-
-    hybrid_virus_key = os.getenv('HYBRID_ANALYSIS_API_KEY')
-
-    #openai_key = os.environ.get('OPENAI_API_KEY')
-
 
     if len(sys.argv) != 2:
         print("Usage: python3 inspector.py <filename>")
@@ -294,7 +398,7 @@ def main():
 
     file_path = sys.argv[1]
 
-    print(f"Analyzing {file_path}...")
+    print(colored(f"Analyzing {file_path}...","blue"))
 
     print(f"Static Analysis Results:\n")
     for key, value in static_analysis(file_path).items():
@@ -302,16 +406,28 @@ def main():
             print("PE Analysis: ")
             for k, v in value.items():
                 print(f"     {k}: {v}")
+        elif key == "VBA Analysis":
+            print(colored("VBA Analysis:","blue"))
+            if value[0] == "VBA Macros Detected":
+                print(colored(f"Macro was detected in the file: {file_path}", "red"))
+            print("VBA Code Analysis from OleTools VBA_Parser.AnalyzeMacro: ")
+            for messages in value[1]:
+                print(messages)
+            
+            print()
+            print(colored("Chat GPT Analysis of VBA Code: ", "blue"))
+           
+            for message in value[2]:
+                role = message['role']
+                content = message['content']
+                #Process the extracted information as needed
+                print(colored(f"Role: {role}", "green"))
+                print(f"Content: {content}")
+                print()
+            
+                
         else:
             print(f"{key}: {value}")
-
-    # magic_instance = magic.Magic()
-    # file_type = magic_instance.from_file(file_path)
-    # print(file_type)
-
-
-
-    
 
 
 if __name__ == "__main__":
