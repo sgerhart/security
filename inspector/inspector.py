@@ -62,7 +62,7 @@ def get_details_from_chatgpt(prompt_list, file_strings="None", suspicious_api_sy
     return message_prompts
 
 # Submit the file to VirusTotal
-def total_virus_report(file_path):
+def get_virus_total_report(file_path):
     # Submit the file to VirusTotal
         vt_api_key = os.getenv('VT_API_KEY')
         vt_report = None
@@ -92,7 +92,7 @@ def is_office_file(file_path):
     return "ms-office" in file_type
 
 # Improved VirusTotal reporting with colored outputs
-def get_virustotal_report(hashes):
+def get_virus_total_information(hashes):
 
     i = 0
     av_result = []
@@ -367,6 +367,8 @@ def static_analysis(file_path, min_length=4):
             # Calculate hashes
             hashes = get_file_hash(file_path)
 
+            static_info["File Hashes"] = hashes
+
             # Use the 'file' command to identify the file type
             magic_instance = magic.Magic()
             file_type = magic_instance.from_file(file_path)
@@ -397,6 +399,11 @@ def static_analysis(file_path, min_length=4):
             else:
                 static_info["Packer"] = "None"
 
+            # Checking virus total for posture of the file
+            av_result = get_virus_total_information(hashes)
+
+            static_info["AV Results"] = av_result
+
         elif file_type == "OLE Document (e.g., MS Office)":
             vba_results = analyze_vba(file_path)
 
@@ -404,10 +411,10 @@ def static_analysis(file_path, min_length=4):
             hashes = get_file_hash(file_path)
 
             # Checking virus total for posture of the file
-            av_result = get_virustotal_report(hashes)
+            av_result = get_virus_total_information(hashes)
 
             # Checking virus total for posture of the file
-            av_report = total_virus_report(file_path)
+            av_report = get_virus_total_report(file_path)
              
             
             static_info = {
@@ -424,10 +431,10 @@ def static_analysis(file_path, min_length=4):
             hashes = get_file_hash(file_path)
            
             # Checking virus total for posture of the file
-            av_result = get_virustotal_report(hashes)
+            av_result = get_virus_total_information(hashes)
 
             # Checking virus total for posture of the file
-            av_report = total_virus_report(file_path)
+            av_report = get_virus_total_report(file_path)
 
             static_info = {
                "File Type": file_type,
